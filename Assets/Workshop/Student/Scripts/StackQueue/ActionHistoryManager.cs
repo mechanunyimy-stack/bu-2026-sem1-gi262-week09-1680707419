@@ -1,7 +1,8 @@
+
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UIElements;
+
 namespace Solution
 {
     public class ActionHistoryManager : MonoBehaviour
@@ -9,56 +10,136 @@ namespace Solution
         // 1. Undo System using Stack
         private Stack<Vector2> undoStack = new Stack<Vector2>();
         private Stack<Vector2> redoStack = new Stack<Vector2>();
+
         // 2. Auto-Move System using Queue
         private Queue<Vector2> autoMoveQueue = new Queue<Vector2>();
 
         #region "This Is undoStack Function"
 
-        /// Saves the current player state (position) to the undo stack.
+        // Save current player position
         public void SaveStateForUndo(Vector2 currentPosition)
         {
-            // Only push a state if it's different from the last saved state 
-            // (optional optimization, but good practice for movement)
-        
+            // Save only if position is different
+            if (undoStack.Count == 0 || undoStack.Peek() != currentPosition)
+            {
+                undoStack.Push(currentPosition);
+
+                // Clear redo history when a new move is made
+                redoStack.Clear();
+            }
         }
-        /// Reverts the player's state to the previous one using the undo stack.
-        /// </summary>
+
+        // Undo last move
         public void UndoLastMove(OOPPlayer player)
         {
-            // Need at least two states: the current one, and the one to revert to.
-           
+            // Need at least two states
+            if (undoStack.Count < 2)
+            {
+                return;
+            }
+
+            // Move current state to redo stack
+            Vector2 currentPosition = undoStack.Pop();
+            redoStack.Push(currentPosition);
+
+            // Get previous position
+            Vector2 prevPosition = undoStack.Peek();
+
+            // Update player position
+            player.UpdatePosition(
+                (int)prevPosition.x,
+                (int)prevPosition.y
+            );
         }
+
+        // Redo last undone move
         public void RedoLastMove(OOPPlayer player)
         {
-            // Need at least two states: the current one, and the one to revert to.
+            if (redoStack.Count == 0)
+            {
+                return;
+            }
 
+            // Restore the previous state
+            Vector2 position = redoStack.Pop();
+            undoStack.Push(position);
+
+            // Update player position
+            player.UpdatePosition(
+                (int)position.x,
+                (int)position.y
+            );
         }
+
         #endregion
+
 
         #region "This Is autoMoveQueue Function"
 
+        // Start automatic movement
         public void StartAutoMoveSequence(OOPPlayer player)
         {
-            //create a sample sequence of moves
-            // 1. prepare the Queue with the sequence of moves
+            // Prepare movement sequence
+            Vector2[] moves = new Vector2[]
+            {
+                Vector2.right,
+                Vector2.right,
+                Vector2.right,
+                Vector2.right,
+                Vector2.up,
+                Vector2.left,
+                Vector2.up,
+                Vector2.down
+            };
 
-            // Start the coroutine to process the auto-move sequence
+            // Clear old queue
+            autoMoveQueue.Clear();
+
+            // Add moves to queue
+            for (int i = 0; i < moves.Length; i++)
+            {
+                autoMoveQueue.Enqueue(moves[i]);
+            }
+
+            // Start coroutine
             StartCoroutine(ProcessAutoMoveSequence(player));
         }
+
+        // Process automatic movement
         public IEnumerator ProcessAutoMoveSequence(OOPPlayer player)
         {
             player.isAutoMoving = true;
-            Debug.Log($"Auto-move sequence started with {autoMoveQueue.Count} steps.");
 
-            // 2. process the Queue step-by-step
-            yield return new WaitForSeconds(0.5f); // Initial delay before starting
+            Debug.Log(
+                $"Auto-move sequence started with {autoMoveQueue.Count} steps."
+            );
+
+            // Process queue step by step
+            while (autoMoveQueue.Count > 0)
+            {
+                yield return new WaitForSeconds(0.5f);
+
+                // Get next movement
+                Vector2 move = autoMoveQueue.Dequeue();
+
+                // Get current player position
+                Vector3 currentPosition = player.transform.position;
+
+                // Calculate next position
+                int newX = (int)currentPosition.x + (int)move.x;
+                int newY = (int)currentPosition.y + (int)move.y;
+
+                // Update player position
+                player.UpdatePosition(newX, newY);
+            }
 
             player.isAutoMoving = false;
+
             Debug.Log("Auto-move sequence finished.");
         }
 
         #endregion
-
     }
 }
+
 
